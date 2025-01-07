@@ -31,18 +31,22 @@ function findFirstLevelSegments() {
         
         // div가 여러개인 경우
         if (divs.length > 1) {
-            // 0.9 이상 높이를 가진 div 찾기
-            const dominantDiv = divs.find(div => {
+            // 0.9 이상 높이를 가진 div 모두 찾기
+            const dominantDivs = divs.filter(div => {
                 const rect = div.getBoundingClientRect();
                 return (rect.height / windowHeight) >= 0.9;
             });
             
-            // 0.9 이상인 div가 있으면 그 아래에서 다시 찾기
-            if (dominantDiv) {
-                const innerDivs = findDivGroups(dominantDiv);
+            // 0.9 이상인 div가 하나만 있으면 그 아래에서 다시 찾기
+            if (dominantDivs.length === 1) {
+                const innerDivs = findDivGroups(dominantDivs[0]);
                 if (innerDivs.length > 1) {
                     return innerDivs;
                 }
+            }
+            // 0.9 이상인 div가 여러개인 경우 (width 기반 구분 대응)
+            else if (dominantDivs.length > 1) {
+                return divs;
             }
             
             // 0.9 이상인게 없으면 현재 div들 반환
