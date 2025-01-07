@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Page Segmentation Highlighter",
+  "version": "1.0",
+  "description": "웹 페이지의 구조를 분석하여 세그먼트를 하이라이트합니다",
+  "permissions": ["activeTab", "scripting"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"]
+  }],
+  "action": {
+    "default_title": "세그멘테이션 시작"
+  }
+}
