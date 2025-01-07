@@ -11,7 +11,7 @@ const colors = [
 function findFirstLevelSegments() {
     const body = document.body;
     let segments = [];
-    const windowHeight = document.body.scrollHeight;
+    const bodyHeight = document.body.scrollHeight;
     
     // header, main, footer 태그 찾기
     const header = body.querySelector('header');
@@ -34,9 +34,9 @@ function findFirstLevelSegments() {
             // 0.9 이상 높이를 가진 div 모두 찾기
             const dominantDivs = divs.filter(div => {
                 const rect = div.getBoundingClientRect();
-                return (rect.height / windowHeight) >= 0.9;
+                return (rect.height / bodyHeight) >= 0.9;
             });
-            
+
             // 0.9 이상인 div가 하나만 있으면 그 아래에서 다시 찾기
             if (dominantDivs.length === 1) {
                 const innerDivs = findDivGroups(dominantDivs[0]);
@@ -48,7 +48,22 @@ function findFirstLevelSegments() {
             else if (dominantDivs.length > 1) {
                 return divs;
             }
-            
+            //
+            else {
+                // divs의 전체 높이 합 중 적어도 하나의 div가 0.9 이상이면 그 아래에서 다시 찾기
+                const totalHeight = divs.reduce((sum, div) => sum + div.getBoundingClientRect().height, 0);
+                const largeDiv = divs.find(div => {
+                    const rect = div.getBoundingClientRect();
+                    return (rect.height / totalHeight) >= 0.9;
+                });
+                console.log(largeDiv);
+                if (largeDiv) {
+                    const innerDivs = findDivGroups(largeDiv);
+                    if (innerDivs.length > 1) {
+                        return innerDivs;
+                    }
+                }
+            }
             // 0.9 이상인게 없으면 현재 div들 반환
             return divs;
         }
@@ -110,12 +125,36 @@ function getSegmentContext(segment) {
     };
 }
 
+// function performSegmentation() {
+//     // 1차 세그멘테이션
+//     const firstLevelSegments = findFirstLevelSegments();
+//     firstLevelSegments.forEach((segment, index) => {
+//         highlightSegment(segment, colors[index % colors.length]);
+        
+//         // 2차 세그멘테이션
+//         const secondLevelSegments = findSecondLevelSegments(segment);
+//         secondLevelSegments.forEach((subSegment, subIndex) => {
+//             highlightSegment(subSegment, colors[(index + subIndex + 1) % colors.length]);
+            
+//             // 3차 세그멘테이션
+//             const thirdLevelSegments = findThirdLevelSegments(subSegment);
+//             thirdLevelSegments.forEach((roleSegment, roleIndex) => {
+//                 highlightSegment(roleSegment.element, colors[(index + subIndex + roleIndex + 2) % colors.length]);
+//                 const context = getSegmentContext(roleSegment.element);
+//                 roleSegment.element.dataset.segmentContext = JSON.stringify(context);
+//             });
+            
+//             const context = getSegmentContext(subSegment);
+//             subSegment.dataset.segmentContext = JSON.stringify(context);
+//         });
+//     });
+// }
+
 function performSegmentation() {
     // 1차 세그멘테이션
     const firstLevelSegments = findFirstLevelSegments();
     firstLevelSegments.forEach((segment, index) => {
         highlightSegment(segment, colors[index % colors.length]);
-        
         // 2차 세그멘테이션
         const secondLevelSegments = findSecondLevelSegments(segment);
         secondLevelSegments.forEach((subSegment, subIndex) => {
