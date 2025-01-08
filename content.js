@@ -1,11 +1,11 @@
 // 색상 팔레트 정의
 const colors = [
-    'rgba(255, 0, 0, 0.2)',
-    'rgba(0, 255, 0, 0.2)', 
-    'rgba(0, 0, 255, 0.2)',
-    'rgba(255, 255, 0, 0.2)',
-    'rgba(255, 0, 255, 0.2)',
-    'rgba(128, 0, 128, 0.2)'
+    'rgba(255, 0, 0, 0.2)', // red
+    'rgba(0, 255, 0, 0.2)', // green
+    'rgba(0, 0, 255, 0.2)', // blue
+//     'rgba(255, 255, 0, 0.2)', // yellow
+//     'rgba(255, 0, 255, 0.2)', // magenta
+//     'rgba(128, 0, 128, 0.2)'
 ];
 
 function findFirstLevelSegments() {
@@ -27,7 +27,7 @@ function findFirstLevelSegments() {
     // header, main, footer가 없는 경우 div로 구분
     function findDivGroups(element) {
         // body 바로 아래의 div 요소들 찾기
-        const divs = Array.from(element.children).filter(el => el.tagName === 'DIV');
+        const divs = Array.from(element.children).filter(el => el.tagName === 'DIV' || el.tagName === 'SECTION');
         
         // div가 여러개인 경우
         if (divs.length > 1) {
@@ -151,25 +151,70 @@ function getSegmentContext(segment) {
 // }
 
 function performSegmentation() {
+    let allSegments = [];
+
     // 1차 세그멘테이션
     const firstLevelSegments = findFirstLevelSegments();
-    firstLevelSegments.forEach((segment, index) => {
-        highlightSegment(segment, colors[index % colors.length]);
-        // 2차 세그멘테이션
+    firstLevelSegments.forEach((segment) => {
+        highlightSegment(segment, colors[0]);
+        allSegments.push({
+            element: segment,
+            level: 1,
+            context: getSegmentContext(segment)
+        });
+        // 2차 세그멘테이션 
         const secondLevelSegments = findSecondLevelSegments(segment);
-        secondLevelSegments.forEach((subSegment, subIndex) => {
-            highlightSegment(subSegment, colors[(index + subIndex + 1) % colors.length]);
+        secondLevelSegments.forEach((subSegment) => {
+            highlightSegment(subSegment, colors[1]);
+            allSegments.push({
+                element: subSegment,
+                level: 2,
+                context: getSegmentContext(subSegment)
+            });
             
             // 3차 세그멘테이션
             const thirdLevelSegments = findThirdLevelSegments(subSegment);
-            thirdLevelSegments.forEach((roleSegment, roleIndex) => {
-                highlightSegment(roleSegment.element, colors[(index + subIndex + roleIndex + 2) % colors.length]);
+            thirdLevelSegments.forEach((roleSegment) => {
+                highlightSegment(roleSegment.element, colors[2]);
                 const context = getSegmentContext(roleSegment.element);
                 roleSegment.element.dataset.segmentContext = JSON.stringify(context);
+                allSegments.push({
+                    element: roleSegment.element,
+                    level: 3,
+                    context: context
+                });
             });
             
             const context = getSegmentContext(subSegment);
             subSegment.dataset.segmentContext = JSON.stringify(context);
         });
     });
+
+    if (firstLevelSegments.length === 0) {
+        let segment = document.body;
+        const secondLevelSegments = findSecondLevelSegments(segment);
+        secondLevelSegments.forEach((subSegment) => {
+            highlightSegment(subSegment, colors[1]);
+            allSegments.push({
+                element: subSegment,
+                level: 2,
+                context: getSegmentContext(subSegment)
+            });
+
+            const thirdLevelSegments = findThirdLevelSegments(subSegment);
+            thirdLevelSegments.forEach((roleSegment) => {
+                highlightSegment(roleSegment.element, colors[2]);
+                const context = getSegmentContext(roleSegment.element);
+                roleSegment.element.dataset.segmentContext = JSON.stringify(context);
+                allSegments.push({
+                    element: roleSegment.element,
+                    level: 3,
+                    context: context
+                });
+            });
+        });
+    }
+
+    console.log(allSegments);
+    return allSegments;
 }
