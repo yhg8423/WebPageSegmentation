@@ -27,7 +27,7 @@ function findFirstLevelSegments() {
     // header, main, footer가 없는 경우 div로 구분
     function findDivGroups(element) {
         // body 바로 아래의 div 요소들 찾기
-        const divs = Array.from(element.children).filter(el => el.tagName === 'DIV' || el.tagName === 'SECTION');
+        const divs = Array.from(element.children).filter(el => el.tagName === 'DIV' || el.tagName === 'SECTION' || el.tagName === 'HEADER' || el.tagName === 'FOOTER' || el.tagName === 'MAIN');
         
         // div가 여러개인 경우
         if (divs.length > 1) {
@@ -36,9 +36,14 @@ function findFirstLevelSegments() {
                 const rect = div.getBoundingClientRect();
                 return (rect.height / bodyHeight) >= 0.9;
             });
+            // 0.9 이하 0.1 이상의 높이를 가진 div 모두 찾기
+            const smallDivs = divs.filter(div => {
+                const rect = div.getBoundingClientRect();
+                return (rect.height / bodyHeight) >= 0.1 && (rect.height / bodyHeight) < 0.9;
+            });
 
-            // 0.9 이상인 div가 하나만 있으면 그 아래에서 다시 찾기
-            if (dominantDivs.length === 1) {
+            // 0.9 이상인 div가 하나만 있으면서 0.1 이상 및 0.9 이하의 높이를 가진 div가 없으면 그 아래에서 다시 찾기
+            if (dominantDivs.length === 1 && smallDivs.length === 0) {
                 const innerDivs = findDivGroups(dominantDivs[0]);
                 if (innerDivs.length > 1) {
                     return innerDivs;
@@ -89,16 +94,19 @@ function findSecondLevelSegments(segment) {
     const subSegments = Array.from(segment.children).filter(el => {
         const interactiveElements = el.querySelectorAll('button, a, input, select, textarea');
         const hasComplexStructure = el.children.length > 1;
-        return hasComplexStructure && interactiveElements.length > 0;
+        const hasManyInteractiveElements = interactiveElements.length > 2;
+        return (hasComplexStructure && interactiveElements.length > 0) || hasManyInteractiveElements;
     });
     
     return subSegments;
 }
 
 function findThirdLevelSegments(segment) {
-    // role 속성이 있는 요소들을 찾아서 해당 요소와 그 하위 요소들을 세그먼트로 구성
+    // role 속성이 있는 요소 또는 interactive element들을 찾아서 해당 요소와 그 하위 요소들을 세그먼트로 구성
     const roleElements = Array.from(segment.querySelectorAll('[role]'));
-    return roleElements.map(el => {
+    const interactiveElements = Array.from(segment.querySelectorAll('button, a, input, select, textarea'));
+    const allElements = [...roleElements, ...interactiveElements];
+    return allElements.map(el => {
         return {
             element: el,
             role: el.getAttribute('role')
@@ -214,7 +222,89 @@ function performSegmentation() {
             });
         });
     }
+    // console.log("document.body.outerHTML: " + document.body.outerHTML);
+    console.log("document.body.outerHTML.length: " + document.body.outerHTML.length);
 
-    console.log(allSegments);
-    return allSegments;
+    // body에서 script 및 style 태그 제거
+    const bodyWithoutScriptsAndStyles = document.body.outerHTML.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '').replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+    // console.log("bodyWithoutScriptsAndStyles: " + bodyWithoutScriptsAndStyles);
+    console.log("bodyWithoutScriptsAndStyles.length: " + bodyWithoutScriptsAndStyles.length);
+
+    // allSegments에서 가장 상위 레벨(level 1)의 element들을 추출
+    const topLevelElements = allSegments.filter(segment => segment.level === 1).map(segment => segment.element);
+
+    // topLevelElements에서 하위 레벨 segment 또는 interactive element 또는 role 속성을 가진 element만 남김.
+    // 예를 들어, 자식 element는 해당 되지 않지만, 손자 element는 해당되는 경우, 손자 element는 포함하고 자식 element에 해당하는 태그는 제외.
+    // 이렇게 하위 레벨 segment 또는 interactive element 또는 role 속성을 가진 element만 남긴 후, 남은 태그들을 tree 형태로 생성
+    let compressedHtml = topLevelElements.map(element => {
+        // 하위 요소들을 재귀적으로 처리하는 함수
+        const processElement = (el) => {
+            const children = Array.from(el.children);
+            const validChildren = children.filter(child => {
+                // 하위 레벨 segment인지 확인
+                const isSegment = allSegments.some(segment => 
+                    segment.level > 1 && segment.element === child
+                );
+                
+                // interactive element인지 확인
+                const isInteractive = child.matches('button, a, input, select, textarea');
+                
+                // role 속성을 가지고 있는지 확인
+                const hasRole = child.hasAttribute('role');
+                
+                // 직접적인 자식이 조건을 만족하지 않더라도 손자나 그 하위 모든 요소들 중에 조건을 만족하는 것이 있는지 확인
+                const hasValidDescendant = Array.from(child.querySelectorAll('*')).some(descendant => {
+                    // 하위 레벨 segment인지 확인 
+                    const isDescendantSegment = allSegments.some(segment => 
+                        segment.level > 1 && segment.element === descendant
+                    );
+                    // interactive element이거나 role 속성을 가지고 있는지 확인
+                    return isDescendantSegment || 
+                           descendant.matches('button, a, input, select, textarea') || 
+                           descendant.hasAttribute('role');
+                });
+
+                return isSegment || isInteractive || hasRole || hasValidDescendant;
+            });
+
+            // 유효한 자식 요소들에 대해 재귀적으로 처리
+            const processedChildren = validChildren.map(child => processElement(child));
+            
+            // HTML 문자열 생성
+            const tagName = el.tagName.toLowerCase();
+            const attributes = Array.from(el.attributes)
+                .map(attr => `${attr.name}="${attr.value}"`)
+                .join(' ');
+                
+            return `<${tagName}${attributes ? ' ' + attributes : ''}>${
+                processedChildren.join('')
+            }</${tagName}>`;
+        };
+
+        return processElement(element);
+    }).join('');
+
+    // html tag 중 segment 이내 어디에도 포함되지 않은 interactive element 또는 role 속성을 가진 element들을 추출
+    const excludedElements = Array.from(document.querySelectorAll('*')).filter(element => {
+        // element가 어떤 segment에도 포함되지 않는지 확인
+        const isNotInSegment = !allSegments.some(segment => 
+            segment.element.contains(element)
+        );
+        
+        // interactive element이거나 role 속성을 가지고 있는지 확인
+        const isInteractiveOrHasRole = element.matches('button, a, input, select, textarea') || 
+                                     element.hasAttribute('role');
+                                     
+        return isNotInSegment && isInteractiveOrHasRole;
+    });
+    const excludedElementsHtml = excludedElements.map(element => element.outerHTML).join('');
+    console.log("excludedElementsHtml: " + excludedElementsHtml);
+    console.log("excludedElementsHtml.length: " + excludedElementsHtml.length);
+    // 해당 element를 compressedHtml에 추가
+    compressedHtml += excludedElementsHtml;
+
+    // console.log("compressedHtml: " + compressedHtml);
+    console.log("compressedHtml.length: " + compressedHtml.length);
+
+    return compressedHtml;
 }
