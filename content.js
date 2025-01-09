@@ -8,7 +8,7 @@ const colors = [
 //     'rgba(128, 0, 128, 0.2)'
 ];
 
-function findFirstLevelSegments() {
+const findFirstLevelSegments = () => {
     const body = document.body;
     let segments = [];
     const bodyHeight = document.body.scrollHeight;
@@ -25,7 +25,7 @@ function findFirstLevelSegments() {
     }
     
     // header, main, footer가 없는 경우 div로 구분
-    function findDivGroups(element) {
+    const findDivGroups = (element) => {
         // body 바로 아래의 div 요소들 찾기
         const divs = Array.from(element.children).filter(el => el.tagName === 'DIV' || el.tagName === 'SECTION' || el.tagName === 'HEADER' || el.tagName === 'FOOTER' || el.tagName === 'MAIN');
         
@@ -89,7 +89,7 @@ function findFirstLevelSegments() {
     return firstLevelDivs.length > 0 ? firstLevelDivs : [body];
 }
 
-function findSecondLevelSegments(segment) {
+const findSecondLevelSegments = (segment) => {
     // 하위 요소들 중 인터랙티브한 요소가 많은 구조 찾기
     const subSegments = Array.from(segment.children).filter(el => {
         const interactiveElements = el.querySelectorAll('button, a, input, select, textarea');
@@ -101,7 +101,7 @@ function findSecondLevelSegments(segment) {
     return subSegments;
 }
 
-function findThirdLevelSegments(segment) {
+const findThirdLevelSegments = (segment) => {
     // role 속성이 있는 요소 또는 interactive element들을 찾아서 해당 요소와 그 하위 요소들을 세그먼트로 구성
     const roleElements = Array.from(segment.querySelectorAll('[role]'));
     const interactiveElements = Array.from(segment.querySelectorAll('button, a, input, select, textarea'));
@@ -114,12 +114,12 @@ function findThirdLevelSegments(segment) {
     });
 }
 
-function highlightSegment(segment, color) {
+const highlightSegment = (segment, color) => {
     segment.style.backgroundColor = color;
     segment.style.border = '2px solid ' + color.replace('0.2', '0.5');
 }
 
-function getSegmentContext(segment) {
+const getSegmentContext = (segment) => {
     // 세그먼트의 텍스트 컨텐츠 및 이미지 정보 수집
     const text = segment.textContent.trim();
     const images = segment.getElementsByTagName('img');
@@ -133,7 +133,7 @@ function getSegmentContext(segment) {
     };
 }
 
-// function performSegmentation() {
+// const performSegmentation = () => {
 //     // 1차 세그멘테이션
 //     const firstLevelSegments = findFirstLevelSegments();
 //     firstLevelSegments.forEach((segment, index) => {
@@ -158,7 +158,7 @@ function getSegmentContext(segment) {
 //     });
 // }
 
-function performSegmentation() {
+const performSegmentation = () => {
     let allSegments = [];
 
     // 1차 세그멘테이션
