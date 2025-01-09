@@ -192,8 +192,8 @@ const findThirdLevelSegments = (html_body, previousSegments) => {
                         child.dataset.seg_level === '3'
                     ).length === current.element.parentElement.children.length) &&
                     // !current.element.parentElement.hasAttribute('data-seg_level') &&
-                    current.element.parentElement.getAttribute('data-seg_level') === '2' &&
-                    current.element.parentElement.getAttribute('data-seg_level') === '1' &&
+                    current.element.parentElement.getAttribute('data-seg_level') !== '2' &&
+                    current.element.parentElement.getAttribute('data-seg_level') !== '1' &&
                     !current.element.parentElement.hidden &&
                     current.element.parentElement.getAttribute('aria-hidden') !== 'true' &&
                     window.getComputedStyle(current.element.parentElement).display !== 'none' &&
@@ -230,6 +230,130 @@ const findThirdLevelSegments = (html_body, previousSegments) => {
     //     ({ segments: updatedSegments, changed } = updateSegmentToParent(updatedSegments));
     // }
     thirdLevelSegments = updatedSegments;
+
+    // 가장 깊은 depth부터 하나씩 올라가면서 처리
+    // 각 depth에 있는 segment 중, 2개 이상의 segment가 같은 부모를 가질 경우, 부모를 새로운 segment로 추가하고, 원래 있던 segment들은 제거
+    
+    const processSegmentsByDepth = (segments) => {
+        // 깊이 정보를 포함하여 정렬
+        let segmentsWithDepth = segments.map(seg => ({
+            ...seg,
+            depth: getDepthFromBody(seg.element)
+        }));
+        
+        // 최대 깊이 찾기
+        const maxDepth = Math.max(...segmentsWithDepth.map(s => s.depth));
+        
+        // 가장 깊은 depth부터 처리
+        for (let currentDepth = maxDepth; currentDepth > 5; currentDepth--) {
+            // 부모 엘리먼트별로 현재 깊이의 세그먼트들을 그룹화
+            const parentGroups = new Map();
+            
+            segmentsWithDepth
+                .filter(seg => seg.depth === currentDepth)
+                .forEach(seg => {
+                    const parent = seg.element.parentElement;
+                    if (parent && 
+                        parent.getAttribute('data-seg_level') !== '1' && 
+                        parent.getAttribute('data-seg_level') !== '2') {
+                        if (!parentGroups.has(parent)) {
+                            parentGroups.set(parent, []);
+                        }
+                        parentGroups.get(parent).push(seg);
+                    }
+                });
+            
+            // 각 부모 그룹 처리
+            parentGroups.forEach((groupSegments, parent) => {
+                if (groupSegments.length >= 2) {
+                    // 기존 세그먼트 제거
+                    groupSegments.forEach(seg => {
+                        seg.element.dataset.seg_level = null;
+                        segmentsWithDepth = segmentsWithDepth.filter(s => s !== seg);
+                    });
+                    
+                    // 부모를 새로운 세그먼트로 추가
+                    parent.dataset.seg_level = '3';
+                    const newSegment = {
+                        element: parent,
+                        role: groupSegments[0].role,
+                        level: 3,
+                        depth: currentDepth - 1
+                    };
+                    segmentsWithDepth.push(newSegment);
+                }
+            });
+        }
+        
+        return segmentsWithDepth;
+    };
+
+    thirdLevelSegments = processSegmentsByDepth(thirdLevelSegments);
+    
+    // 부모 엘리먼트별로 segment들을 그룹화하고 depth 정보 추가
+    // const processSegmentsByDepth = (segments) => {
+    //     const segmentMap = new Map();
+    //     segments.forEach(seg => {
+    //         const parent = seg.element.parentElement;
+    //         if (parent && 
+    //             parent.getAttribute('data-seg_level') !== '1' && 
+    //             parent.getAttribute('data-seg_level') !== '2') {
+    //             if (!segmentMap.has(parent)) {
+    //                 segmentMap.set(parent, []);
+    //             }
+    //             segmentMap.get(parent).push({
+    //                 ...seg,
+    //                 depth: getDepthFromBody(seg.element)
+    //             });
+    //         }
+    //     });
+    //     return segmentMap;
+    // };
+
+    // let currentDepth = 0;
+    // let hasChanges = true;
+    // let processedSegments = thirdLevelSegments;
+
+    // while (hasChanges) {
+    //     hasChanges = false;
+    //     const segmentMap = processSegmentsByDepth(processedSegments);
+    //     const newSegments = [];
+
+    //     segmentMap.forEach((segments, parent) => {
+    //         const currentDepthSegs = segments.filter(seg => seg.depth === currentDepth);
+            
+    //         if (currentDepthSegs.length >= 2) {
+    //             // 2개 이상의 segment가 같은 부모를 가질 경우
+    //             parent.dataset.seg_level = 3;
+    //             currentDepthSegs.forEach(seg => {
+    //                 seg.element.dataset.seg_level = null;
+    //             });
+                
+    //             // 새로운 부모 segment 추가
+    //             newSegments.push({
+    //                 element: parent,
+    //                 role: currentDepthSegs[0].role,
+    //                 level: 3
+    //             });
+                
+    //             hasChanges = true;
+    //         } else {
+    //             // 나머지 segment들은 그대로 유지
+    //             segments.forEach(seg => {
+    //                 if (!currentDepthSegs.includes(seg)) {
+    //                     newSegments.push(seg);
+    //                 }
+    //             });
+    //         }
+    //     });
+
+    //     if (hasChanges) {
+    //         processedSegments = newSegments;
+    //         currentDepth++;
+    //     }
+    // }
+
+    // thirdLevelSegments = processedSegments;
 
     // 부모 엘리먼트별로 segment들을 그룹화
     // let segmentsByParent = new Map();
@@ -432,6 +556,10 @@ const performSegmentation = () => {
 
     console.log(thirdLevelSegments.length);
     
+    // distance 4 이내의 text Content를 각 segment에 추가하여 context로 사용하기 (1.10)
+
+    
+
     // if (firstLevelSegments.length === 0) {
     //     let segment = document.body;
     //     const secondLevelSegments = findSecondLevelSegments(segment);
