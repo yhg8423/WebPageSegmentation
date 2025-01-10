@@ -105,6 +105,7 @@ const findThirdLevelSegments = (html_body, previousSegments) => {
     
     // previousSegments의 segment의 depth를 계산하고, 그 중 max depth를 계산
     let previousMaxDepth = 0;
+    console.log(previousSegments);
     if (previousSegments.length > 0) {
         // 각 segment의 depth 계산
         const depths = previousSegments.map(seg => {
@@ -510,16 +511,27 @@ const highlightSegment = (segment, color) => {
 }
 
 const getSegmentContext = (segment) => {
-    // 세그먼트의 텍스트 컨텐츠 및 이미지 정보 수집
+    // 세그먼트의 텍스트 컨텐츠, 이미지 정보 및 추가적인 컨텍스트 정보 수집
     const text = segment.textContent.trim();
     const images = segment.getElementsByTagName('img');
     const imageUrls = Array.from(images).map(img => img.src);
     const role = segment.getAttribute('role');
-    
+    const ariaLabel = segment.getAttribute('aria-label');
+    const ariaLabelledBy = segment.getAttribute('aria-labelledby');
+    const className = segment.className;
+    const title = segment.getAttribute('title');
+    const interactiveElements = segment.querySelectorAll('button, a, input, select, textarea, label');
+    const interactiveElementsText = Array.from(interactiveElements).map(el => el.textContent.trim());
+
     return {
         text: text,
         images: imageUrls,
-        role: role
+        role: role,
+        ariaLabel: ariaLabel,
+        ariaLabelledBy: ariaLabelledBy,
+        className: className,
+        title: title,
+        interactiveElements: interactiveElementsText
     };
 }
 
@@ -577,7 +589,7 @@ const performSegmentation = () => {
     });
 
     // 3차 세그멘테이션
-    const thirdLevelSegments = findThirdLevelSegments(document.body, []);
+    const thirdLevelSegments = findThirdLevelSegments(document.body, allSegments);
     thirdLevelSegments.forEach((roleSegment) => {
         highlightSegment(roleSegment.element, "rgba(255, 0, 0, 0.2)");
         const seg_level = 3;
@@ -591,7 +603,18 @@ const performSegmentation = () => {
 
     console.log(thirdLevelSegments.length);
     
-    // distance 4 이내의 text Content를 각 segment에 추가하여 context로 사용할 수 있는 확인필요 (1.10)
+    // thirdLevelSegements를 LLM이 이해하기 쉬운 JSON 형태로 변환
+    let segment_id = 0;
+    const thirdLevelSegmentsJson = thirdLevelSegments.map(segment => {
+        return {
+            element: segment.element,
+            role: segment.role,
+            level: segment.level,
+            context: getSegmentContext(segment.element),
+            id: segment_id++
+        };
+    });
+    console.log(thirdLevelSegmentsJson);
 
 
 
