@@ -102,6 +102,27 @@ const findSecondLevelSegments = (segment) => {
 }
 
 const findThirdLevelSegments = (html_body, previousSegments) => {
+    
+    // previousSegments의 segment의 depth를 계산하고, 그 중 max depth를 계산
+    let previousMaxDepth = 0;
+    if (previousSegments.length > 0) {
+        // 각 segment의 depth 계산
+        const depths = previousSegments.map(seg => {
+            let depth = 0;
+            let parent = seg.element.parentElement;
+            while (parent) {
+                depth++;
+                parent = parent.parentElement;
+            }
+            return depth;
+        });
+        
+        // 최대 depth 계산
+        previousMaxDepth = Math.max(...depths);
+    }
+    console.log("previousMaxDepth: " + previousMaxDepth);
+
+
     // 모든 interactive elements와 role 속성을 가진 elements 찾기
     const interactiveElements = Array.from(html_body.querySelectorAll('button, a, input, select, textarea'));
     const roleElements = Array.from(html_body.querySelectorAll('[role="button"], [role="link"], [role="menuitem"], [role="option"], [role="tab"], [role="checkbox"], [role="radio"], [role="switch"], [role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"], [role="slider"]'));
@@ -128,6 +149,20 @@ const findThirdLevelSegments = (html_body, previousSegments) => {
 
     // 각 element의 가장 가까운 상위 element 찾기
     let thirdLevelSegments = filteredElements.map(el => {
+        let elementDepth = 0;
+        let currentElement = el;
+        while (currentElement) {
+            elementDepth++;
+            currentElement = currentElement.parentElement;
+        }
+        if (elementDepth <= previousMaxDepth) {
+            return {
+                element: el,
+                role: el.getAttribute('role'),
+                level: 3,
+            };
+        }
+        
         let parent = el.parentElement;
         parent.dataset.seg_level = 3;
         // // while (parent && parent.tagName.toLowerCase() !== 'div') {
@@ -180,7 +215,7 @@ const findThirdLevelSegments = (html_body, previousSegments) => {
         
         let changed = false;
         // 가장 깊은 depth부터 하나씩 처리
-        for (let currentDepth = maxDepth; currentDepth > 0; currentDepth--) {
+        for (let currentDepth = maxDepth; currentDepth > previousMaxDepth; currentDepth--) {
             // 현재 깊이의 세그먼트만 처리
             segments = segmentsWithDepth.map(seg => {
                 let current = seg;
@@ -245,7 +280,7 @@ const findThirdLevelSegments = (html_body, previousSegments) => {
         const maxDepth = Math.max(...segmentsWithDepth.map(s => s.depth));
         
         // 가장 깊은 depth부터 처리
-        for (let currentDepth = maxDepth; currentDepth > 5; currentDepth--) {
+        for (let currentDepth = maxDepth; currentDepth > previousMaxDepth; currentDepth--) {
             // 부모 엘리먼트별로 현재 깊이의 세그먼트들을 그룹화
             const parentGroups = new Map();
             
@@ -556,9 +591,9 @@ const performSegmentation = () => {
 
     console.log(thirdLevelSegments.length);
     
-    // distance 4 이내의 text Content를 각 segment에 추가하여 context로 사용하기 (1.10)
+    // distance 4 이내의 text Content를 각 segment에 추가하여 context로 사용할 수 있는 확인필요 (1.10)
 
-    
+
 
     // if (firstLevelSegments.length === 0) {
     //     let segment = document.body;
