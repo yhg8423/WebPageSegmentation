@@ -516,18 +516,20 @@ const getSegmentContext = (segment) => {
     const images = segment.getElementsByTagName('img');
     const imageUrls = Array.from(images).map(img => img.src);
     const role = segment.getAttribute('role');
-    const ariaLabel = segment.getAttribute('aria-label');
+    const ariaLabels = Array.from(segment.querySelectorAll('*')).map(el => el.getAttribute('aria-label')).join(' / ');
     const ariaLabelledBy = segment.getAttribute('aria-labelledby');
     const className = segment.className;
     const title = segment.getAttribute('title');
-    const interactiveElements = segment.querySelectorAll('button, a, input, select, textarea, label');
-    const interactiveElementsText = Array.from(interactiveElements).map(el => el.textContent.trim());
+    const interactiveElements = segment.querySelectorAll('button, a, input, select, textarea, label, form');
+    const interactiveElementsText = Array.from(interactiveElements).map(el => {
+        return el.textContent.trim() + el.title + el.placeholder + el.value + el.name;
+    }).join(' / ');
 
     return {
         text: text,
-        images: imageUrls,
+        // images: imageUrls,
         role: role,
-        ariaLabel: ariaLabel,
+        ariaLabels: ariaLabels,
         ariaLabelledBy: ariaLabelledBy,
         className: className,
         title: title,
@@ -615,8 +617,6 @@ const performSegmentation = () => {
         };
     });
     console.log(thirdLevelSegmentsJson);
-
-
 
     // if (firstLevelSegments.length === 0) {
     //     let segment = document.body;
