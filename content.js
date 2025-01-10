@@ -511,8 +511,14 @@ const highlightSegment = (segment, color) => {
 }
 
 const getSegmentContext = (segment) => {
+    const cleanSegment = segment.cloneNode(true);
+    cleanSegment.querySelectorAll('style, script').forEach(el => el.remove());
+    segment = cleanSegment;
+
+    console.log(cleanSegment);
+
     // 세그먼트의 텍스트 컨텐츠, 이미지 정보 및 추가적인 컨텍스트 정보 수집
-    const text = segment.textContent.trim();
+    const text = segment.textContent.trim(); 
     const images = segment.getElementsByTagName('img');
     const imageUrls = Array.from(images).map(img => img.src);
     const role = segment.getAttribute('role');
@@ -522,7 +528,20 @@ const getSegmentContext = (segment) => {
     const title = segment.getAttribute('title');
     const interactiveElements = segment.querySelectorAll('button, a, input, select, textarea, label, form');
     const interactiveElementsText = Array.from(interactiveElements).map(el => {
-        return el.textContent.trim() + el.title + el.placeholder + el.value + el.name;
+        let element_contexts = el.textContent.trim();
+        if (el.title !== undefined) {
+            element_contexts += el.title;
+        }
+        if (el.placeholder !== undefined) {
+            element_contexts += el.placeholder;
+        }
+        if (el.value !== undefined) {
+            element_contexts += el.value;
+        }
+        if (el.name !== undefined) {
+            element_contexts += el.name;
+        }
+        return element_contexts;
     }).join(' / ');
 
     return {
@@ -617,6 +636,43 @@ const performSegmentation = () => {
         };
     });
     console.log(thirdLevelSegmentsJson);
+
+    const buildElementHierarchy = (element) => {
+        const children = Array.from(element.children);
+        return {
+            tag: element.tagName,
+            id: element.id || null,
+            class: element.className || null,
+            attributes: Array.from(element.attributes).reduce((attrs, attr) => {
+                attrs[attr.name] = attr.value;
+                return attrs;
+            }, {}),
+            children: children.map(child => buildElementHierarchy(child)),
+        };
+    };
+
+    const thirdLevelSegmentsHierarchyJson = thirdLevelSegmentsJson.map(segment => {
+        return {
+            element: buildElementHierarchy(segment.element),
+            context: segment.context,
+            role: segment.role,
+            id: segment.id,
+            level: segment.level,
+        };
+    });
+    // console.log(thirdLevelSegmentsHierarchyJson);
+
+    const thirdLevelSegmentSmall = thirdLevelSegmentsJson.map(segment => {
+        return {
+            // element: segment.element,
+            context: segment.context,
+            role: segment.role,
+            id: segment.id,
+            level: segment.level
+        };
+    });
+    console.log(thirdLevelSegmentSmall);
+
 
     // if (firstLevelSegments.length === 0) {
     //     let segment = document.body;
@@ -730,15 +786,7 @@ const performSegmentation = () => {
     // return compressedHtml;
 
     // interactive elements 및 role 속성을 가진 element들만 추출
-    const interactiveElements = Array.from(document.querySelectorAll('button, a, input, select, textarea'));
-    const roleElements = Array.from(document.querySelectorAll('[role]'));
-    const allInteractiveElements = [...new Set([...interactiveElements, ...roleElements])];
     
-    // 각 요소의 HTML 문자열 생성
-    const interactiveHtml = allInteractiveElements.map(element => element.outerHTML).join('');
-    console.log(allInteractiveElements);
-    console.log("Interactive elements HTML length:", interactiveHtml.length);
-    
-    return interactiveHtml;
+    return thirdLevelSegmentsHierarchyJson;
     
 }
